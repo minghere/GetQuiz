@@ -1033,3 +1033,189 @@
     padding-left: 0.75rem;
   }
 }
+
+/* ── Quiz with AI — Teal/Emerald accent ── */
+
+/* AI primary button — teal gradient, distinct from purple btn-primary */
+.btn-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.25rem;
+  border-radius: var(--radius-full);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-family: var(--font-display);
+  cursor: pointer;
+  border: none;
+  background: linear-gradient(135deg, #0ea5a0 0%, #10c9a3 100%);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(14, 165, 160, 0.35);
+  transition: opacity var(--t-base), transform var(--t-base), box-shadow var(--t-base);
+}
+
+.btn-ai:hover {
+  opacity: 0.88;
+  transform: translateY(-1px);
+  box-shadow: 0 0 24px rgba(14, 165, 160, 0.5);
+}
+
+.btn-ai:active {
+  transform: translateY(0);
+}
+
+/* Sidebar nav item accent when active for AI view */
+.db-nav-item.active-ai {
+  background: rgba(14, 165, 160, 0.1);
+  color: #10c9a3;
+}
+
+/* ── AI Prompt Section ── */
+
+.db-ai-prompt-wrap {
+  position: relative;
+  border-radius: var(--radius-lg);
+  padding: 2px;
+  background: linear-gradient(135deg, rgba(14,165,160,0.5), rgba(16,201,163,0.2), rgba(99,68,245,0.3));
+  background-size: 200% 200%;
+  animation: ai-shimmer 3s ease infinite;
+}
+
+@keyframes ai-shimmer {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.db-ai-prompt {
+  width: 100%;
+  background: var(--db-surface-2);
+  border: none;
+  border-radius: calc(var(--radius-lg) - 2px);
+  padding: 1rem 1.125rem;
+  color: var(--text-1);
+  font-family: var(--font-display);
+  font-size: 0.9rem;
+  line-height: 1.6;
+  outline: none;
+  resize: vertical;
+  min-height: 88px;
+  transition: background var(--t-base);
+  box-sizing: border-box;
+}
+
+.db-ai-prompt::placeholder { color: var(--text-3); }
+
+/* ── AI Config Row ── */
+.db-ai-config-row {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.db-ai-config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 140px;
+}
+
+.db-ai-select {
+  background: var(--db-surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem;
+  color: var(--text-1);
+  font-family: var(--font-display);
+  font-size: 0.82rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color var(--t-base);
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237a72a0' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.625rem center;
+  padding-right: 2rem;
+}
+
+.db-ai-select:focus {
+  border-color: #10c9a3;
+  box-shadow: 0 0 0 3px rgba(14, 165, 160, 0.15);
+}
+
+/* ── AI Generating State ── */
+.db-ai-generating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3rem 2rem;
+  color: var(--text-3);
+  text-align: center;
+}
+
+.db-ai-generating-icon {
+  color: #10c9a3;
+  animation: ai-spin 1s linear infinite;
+}
+
+@keyframes ai-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.db-ai-generating-text {
+  font-size: 0.9rem;
+  color: var(--text-2);
+  font-weight: 500;
+}
+
+.db-ai-generating-sub {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--text-3);
+}
+
+/* ── AI Badge on generated questions ── */
+.db-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  padding: 0.1rem 0.45rem;
+  border-radius: var(--radius-full);
+  background: rgba(14, 165, 160, 0.12);
+  color: #10c9a3;
+  border: 1px solid rgba(14, 165, 160, 0.25);
+  margin-left: auto;
+}
+
+/* AI section-title tint */
+.db-ai-section-title {
+  color: #10c9a3;
+}
+
+/* Generated results header row */
+.db-ai-result-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.db-ai-result-chip {
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  color: #10c9a3;
+  background: rgba(14, 165, 160, 0.1);
+  border: 1px solid rgba(14, 165, 160, 0.2);
+  border-radius: var(--radius-full);
+  padding: 0.2rem 0.6rem;
+}

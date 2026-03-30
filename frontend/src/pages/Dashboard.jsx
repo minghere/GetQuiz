@@ -4,7 +4,8 @@ import {
   Zap, Sun, Moon, LayoutDashboard, PlusCircle, ClipboardList,
   ChevronRight, Search, Trash2, Edit3, X, Plus, Check,
   ToggleLeft, CheckSquare, Clock, HelpCircle, ArrowLeft,
-  AlertCircle, BookOpen, BarChart2, ChevronDown
+  AlertCircle, BookOpen, BarChart2, ChevronDown,
+  Sparkles, Loader2
 } from 'lucide-react';
 import { useTheme } from '../context/ThemeContext';
 import { MOCK_QUIZZES } from '../data/mockQuizzes';
@@ -27,7 +28,7 @@ function quizzesReducer(state, action) {
 }
 
 // ── Views ──────────────────────────────────────────────────────
-const VIEWS = { HOME: 'home', CREATE: 'create', DETAIL: 'detail' };
+const VIEWS = { HOME: 'home', CREATE: 'create', DETAIL: 'detail', AI_CREATE: 'ai_create' };
 
 export default function Dashboard() {
   const { theme, toggle } = useTheme();
@@ -65,6 +66,11 @@ export default function Dashboard() {
     setView(VIEWS.HOME);
   }, []);
 
+  const handleAiCreate = useCallback((quiz) => {
+    dispatch({ type: 'ADD_QUIZ', quiz });
+    setView(VIEWS.HOME);
+  }, []);
+
   const filteredQuizzes = useMemo(() =>
     quizzes.filter(q =>
       q.title.toLowerCase().includes(search.toLowerCase()) ||
@@ -98,6 +104,13 @@ export default function Dashboard() {
             <PlusCircle size={16} />
             Create Quiz
           </button>
+          <button
+            className={`db-nav-item${view === VIEWS.AI_CREATE ? ' active-ai' : ''}`}
+            onClick={() => setView(VIEWS.AI_CREATE)}
+          >
+            <Sparkles size={16} />
+            Quiz with AI
+          </button>
         </nav>
 
         <div className="db-sidebar-footer">
@@ -127,11 +140,18 @@ export default function Dashboard() {
             onOpen={openDetail}
             onDelete={handleDelete}
             onCreate={() => setView(VIEWS.CREATE)}
+            onAiCreate={() => setView(VIEWS.AI_CREATE)}
           />
         )}
         {view === VIEWS.CREATE && (
           <CreateQuiz
             onSave={handleCreate}
+            onCancel={() => setView(VIEWS.HOME)}
+          />
+        )}
+        {view === VIEWS.AI_CREATE && (
+          <AiCreateQuiz
+            onSave={handleAiCreate}
             onCancel={() => setView(VIEWS.HOME)}
           />
         )}
@@ -148,7 +168,7 @@ export default function Dashboard() {
 }
 
 // ── QuizList View ──────────────────────────────────────────────
-function QuizList({ quizzes, allCount, search, onSearch, onOpen, onDelete, onCreate }) {
+function QuizList({ quizzes, allCount, search, onSearch, onOpen, onDelete, onCreate, onAiCreate }) {
   return (
     <div className="db-view">
       <header className="db-view-header">
@@ -156,10 +176,16 @@ function QuizList({ quizzes, allCount, search, onSearch, onOpen, onDelete, onCre
           <h1 className="db-view-title">My Quizzes</h1>
           <p className="db-view-sub">{allCount} quiz{allCount !== 1 ? 'zes' : ''} in your library</p>
         </div>
-        <button className="btn btn-primary db-create-btn" onClick={onCreate}>
-          <Plus size={16} />
-          New Quiz
-        </button>
+        <div style={{ display: 'flex', gap: '0.625rem', flexWrap: 'wrap' }}>
+          <button className="btn btn-primary db-create-btn" onClick={onCreate}>
+            <Plus size={16} />
+            New Quiz
+          </button>
+          <button className="btn-ai" onClick={onAiCreate} id="quiz-with-ai-btn">
+            <Sparkles size={15} />
+            Quiz with AI
+          </button>
+        </div>
       </header>
 
       {/* Search */}
@@ -605,6 +631,275 @@ function TFEditor({ q, idx, errors, onUpdate, onRemove }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── AiCreateQuiz View ──────────────────────────────────────────
+
+// Deterministic question generator — simulates AI without a real API
+function buildAiQuestions(topic, count, mix) {
+  const topicLabel = topic.trim() || 'General Knowledge';
+  const questions = [];
+  for (let i = 0; i < count; i++) {
+    const isTf = mix === 'tf' || (mix === 'mixed' && i % 3 === 2);
+    if (isTf) {
+      questions.push({
+        id: Date.now() + Math.random(),
+        type: 'tf',
+        text: `[AI] Statement ${i + 1} about ${topicLabel}: This concept is fundamental to the topic at hand.`,
+        correct: i % 2 === 0,
+      });
+    } else {
+      questions.push({
+        id: Date.now() + Math.random(),
+        type: 'mcq',
+        text: `[AI] Question ${i + 1}: Which of the following best describes a key principle of ${topicLabel}?`,
+        options: [
+          `Option A — Primary concept in ${topicLabel}`,
+          `Option B — Secondary concept in ${topicLabel}`,
+          `Option C — Related but distinct idea`,
+          `Option D — Common misconception`,
+        ],
+        correctIndex: i % 4,
+      });
+    }
+  }
+  return questions;
+}
+
+function AiCreateQuiz({ onSave, onCancel }) {
+  const PHASE = { PROMPT: 'prompt', GENERATING: 'generating', EDIT: 'edit' };
+  const [phase, setPhase] = useState(PHASE.PROMPT);
+  const [prompt, setPrompt] = useState('');
+  const [numQ, setNumQ] = useState('5');
+  const [mix, setMix] = useState('mixed');
+  const [promptError, setPromptError] = useState('');
+
+  // Editable quiz state
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [tags, setTags] = useState('');
+  const [questions, setQuestions] = useState([]);
+  const [errors, setErrors] = useState({});
+
+  const handleGenerate = () => {
+    if (!prompt.trim()) {
+      setPromptError('Please describe a topic to generate questions about.');
+      return;
+    }
+    setPromptError('');
+    setPhase(PHASE.GENERATING);
+    setTimeout(() => {
+      const generated = buildAiQuestions(prompt, parseInt(numQ, 10), mix);
+      setTitle(`Quiz: ${prompt.trim()}`);
+      setDescription(`AI-generated quiz about "${prompt.trim()}". Review and edit before saving.`);
+      setTags(prompt.split(' ').slice(0, 3).join(', '));
+      setQuestions(generated);
+      setPhase(PHASE.EDIT);
+    }, 1600);
+  };
+
+  const addQuestion = (type) =>
+    setQuestions(qs => [...qs, type === 'mcq' ? EMPTY_MCQ() : EMPTY_TF()]);
+
+  const removeQuestion = (id) =>
+    setQuestions(qs => qs.filter(q => q.id !== id));
+
+  const updateQuestion = (id, patch) =>
+    setQuestions(qs => qs.map(q => q.id === id ? { ...q, ...patch } : q));
+
+  const updateOption = (qid, oIdx, value) =>
+    setQuestions(qs => qs.map(q => {
+      if (q.id !== qid) return q;
+      const options = [...q.options];
+      options[oIdx] = value;
+      return { ...q, options };
+    }));
+
+  const validate = () => {
+    const e = {};
+    if (!title.trim()) e.title = 'Quiz title is required.';
+    if (questions.length === 0) e.questions = 'Add at least one question.';
+    questions.forEach((q, i) => {
+      if (!q.text.trim()) e[`q${i}_text`] = `Question ${i + 1} needs a prompt.`;
+      if (q.type === 'mcq') {
+        q.options.forEach((o, oi) => {
+          if (!o.trim()) e[`q${i}_o${oi}`] = `Q${i + 1} Option ${String.fromCharCode(65 + oi)} is empty.`;
+        });
+      }
+    });
+    return e;
+  };
+
+  const handleSave = () => {
+    const e = validate();
+    if (Object.keys(e).length) { setErrors(e); return; }
+    const quiz = {
+      id: Date.now(),
+      title: title.trim(),
+      description: description.trim() || 'No description provided.',
+      createdAt: new Date().toISOString().slice(0, 10),
+      questionCount: questions.length,
+      tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+      questions: questions.map((q, i) => ({ ...q, id: i + 1 })),
+    };
+    onSave(quiz);
+  };
+
+  return (
+    <div className="db-view">
+      <header className="db-view-header">
+        <div>
+          <button className="db-back-btn" onClick={onCancel}>
+            <ArrowLeft size={14} /> Cancel
+          </button>
+          <h1 className="db-view-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Sparkles size={22} color="#10c9a3" /> Quiz with AI
+          </h1>
+          <p className="db-view-sub">
+            {phase === PHASE.PROMPT && 'Describe a topic and let AI draft your questions.'}
+            {phase === PHASE.GENERATING && 'Generating your quiz…'}
+            {phase === PHASE.EDIT && 'Review and edit the AI-generated questions, then save.'}
+          </p>
+        </div>
+        {phase === PHASE.EDIT && (
+          <button className="btn-ai" onClick={handleSave}>
+            <Check size={15} /> Save Quiz
+          </button>
+        )}
+      </header>
+
+      {/* ── PROMPT phase ── */}
+      {phase === PHASE.PROMPT && (
+        <section className="db-form-section">
+          <h2 className="db-form-section-title db-ai-section-title">Topic &amp; Prompt</h2>
+          <div className="db-form-field" style={{ marginBottom: '1.25rem' }}>
+            <label className="db-label" htmlFor="ai-prompt">
+              What is this quiz about? *
+            </label>
+            <div className="db-ai-prompt-wrap">
+              <textarea
+                id="ai-prompt"
+                className="db-ai-prompt"
+                value={prompt}
+                onChange={e => { setPrompt(e.target.value); setPromptError(''); }}
+                placeholder="e.g. World War II history, React hooks, photosynthesis, the French Revolution…"
+                rows={3}
+              />
+            </div>
+            {promptError && <p className="db-error" style={{ marginTop: '0.375rem' }}>{promptError}</p>}
+          </div>
+
+          <h2 className="db-form-section-title db-ai-section-title" style={{ marginBottom: '0.75rem' }}>Options</h2>
+          <div className="db-ai-config-row">
+            <div className="db-ai-config-item">
+              <label className="db-label" htmlFor="ai-num-q">Number of questions</label>
+              <select id="ai-num-q" className="db-ai-select" value={numQ} onChange={e => setNumQ(e.target.value)}>
+                <option value="3">3 questions</option>
+                <option value="5">5 questions</option>
+                <option value="8">8 questions</option>
+                <option value="10">10 questions</option>
+              </select>
+            </div>
+            <div className="db-ai-config-item">
+              <label className="db-label" htmlFor="ai-mix">Question type</label>
+              <select id="ai-mix" className="db-ai-select" value={mix} onChange={e => setMix(e.target.value)}>
+                <option value="mixed">Mixed (MCQ + T/F)</option>
+                <option value="mcq">Multiple Choice only</option>
+                <option value="tf">True / False only</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ marginTop: '1.75rem' }}>
+            <button className="btn-ai" onClick={handleGenerate} id="ai-generate-btn">
+              <Sparkles size={15} /> Generate Quiz
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* ── GENERATING phase ── */}
+      {phase === PHASE.GENERATING && (
+        <div className="db-ai-generating">
+          <Loader2 size={44} className="db-ai-generating-icon" />
+          <p className="db-ai-generating-text">Crafting your questions…</p>
+          <p className="db-ai-generating-sub">Analyzing topic · Building questions · Selecting answers</p>
+        </div>
+      )}
+
+      {/* ── EDIT phase ── */}
+      {phase === PHASE.EDIT && (
+        <>
+          {/* Metadata */}
+          <section className="db-form-section">
+            <h2 className="db-form-section-title db-ai-section-title">Quiz Details</h2>
+            <div className="db-form-grid">
+              <div className="db-form-field">
+                <label className="db-label" htmlFor="ai-quiz-title">Title *</label>
+                <input
+                  id="ai-quiz-title"
+                  className={`db-input${errors.title ? ' error' : ''}`}
+                  value={title}
+                  onChange={e => { setTitle(e.target.value); setErrors(err => ({ ...err, title: undefined })); }}
+                  placeholder="e.g. World War II Quiz"
+                />
+                {errors.title && <p className="db-error">{errors.title}</p>}
+              </div>
+              <div className="db-form-field">
+                <label className="db-label" htmlFor="ai-quiz-desc">Description</label>
+                <input
+                  id="ai-quiz-desc"
+                  className="db-input"
+                  value={description}
+                  onChange={e => setDescription(e.target.value)}
+                />
+              </div>
+              <div className="db-form-field">
+                <label className="db-label" htmlFor="ai-quiz-tags">
+                  Tags <span className="db-label-hint">(comma-separated)</span>
+                </label>
+                <input
+                  id="ai-quiz-tags"
+                  className="db-input"
+                  value={tags}
+                  onChange={e => setTags(e.target.value)}
+                />
+              </div>
+            </div>
+          </section>
+
+          {/* Questions */}
+          <section className="db-form-section">
+            <div className="db-ai-result-header">
+              <h2 className="db-form-section-title db-ai-section-title" style={{ marginBottom: 0 }}>
+                Generated Questions
+                <span className="db-question-count">{questions.length}</span>
+              </h2>
+              <span className="db-ai-result-chip"><Sparkles size={10} /> AI-generated</span>
+              <div className="db-add-btns" style={{ marginLeft: 'auto' }}>
+                <button className="btn btn-ghost btn-sm" onClick={() => addQuestion('mcq')}>
+                  <CheckSquare size={14} /> Add MCQ
+                </button>
+                <button className="btn btn-ghost btn-sm" onClick={() => addQuestion('tf')}>
+                  <ToggleLeft size={14} /> Add T/F
+                </button>
+              </div>
+            </div>
+
+            {errors.questions && <p className="db-error db-error-top">{errors.questions}</p>}
+
+            <div className="db-editor-list">
+              {questions.map((q, idx) =>
+                q.type === 'mcq'
+                  ? <MCQEditor key={q.id} q={q} idx={idx} errors={errors} onUpdate={updateQuestion} onOption={updateOption} onRemove={removeQuestion} />
+                  : <TFEditor key={q.id} q={q} idx={idx} errors={errors} onUpdate={updateQuestion} onRemove={removeQuestion} />
+              )}
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
