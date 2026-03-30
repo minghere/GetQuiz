@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowRight, ChevronRight } from 'lucide-react';
+import { generateQuiz } from '../api/quizzes';
 
 // Lightweight star field using pure CSS/JS — no library needed
 function StarField({ count = 80 }) {
@@ -160,6 +162,10 @@ export default function Hero() {
   const [prompt, setPrompt] = useState('');
   const inputRef = useRef(null);
 
+  //Add 3 loading state
+  const navigate = useNavigate();
+  const [loadingState, setLoadingState] = useState('idle'); // 'idle' | 'checking' | 'generating'
+
   const EXAMPLE_PROMPTS = [
     'Make a 10-question quiz about the Solar System',
     '5 MCQs on the French Revolution for high school',
@@ -174,137 +180,216 @@ export default function Hero() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleGenerate = useCallback(() => {
+  const handleGenerate = useCallback(async () => {
     if (!prompt.trim()) {
       inputRef.current?.focus();
       return;
     }
-    // CTA action — noop for demo
-    alert(`Generating quiz for: "${prompt}"\n\nSign up to continue!`);
-  }, [prompt]);
+    //Add executing process of 3 added states
+
+    try {
+      // 1. Open Overlay
+      setLoadingState('checking');
+
+      // (UX Optional) slightly delay to prevent UI flicker
+      // then switch to a generating state
+      setTimeout(() => {
+        setLoadingState(prev => prev === 'checking' ? 'generating' : prev);
+      }, 1500);
+
+      // 2. Call API endpoint
+      const res = await generateQuiz(prompt, 10);
+
+      if (!res.ok) {
+        setLoadingState('idle');
+        alert("Failed: " + res.error);
+        return;
+      }
+
+      // 3. Close Overlay
+      setLoadingState('idle');
+
+      // 4. Pass API client result payload
+      navigate('/dashboard', { state: { generatedQuiz: res.data.data } });
+
+    } catch (err) {
+      setLoadingState('idle');
+      alert("Server connection error. Please ensure FastAPI is running.");
+    }
+  }, [prompt, navigate]);
 
   return (
-    <section className="hero" id="hero" aria-labelledby="hero-heading">
-      {/* Ambient background */}
-      <div className="hero-bg" aria-hidden="true">
-        <StarField count={100} />
-        <div className="hero-blob-1" />
-        <div className="hero-blob-2" />
-      </div>
-
-      <div className="hero-content" style={{ width: '100%' }}>
-        <div className="hero-inner">
-          {/* Left column: copy & CTA */}
-          <div>
-            {/* Badge */}
-            <div className="hero-badge anim-fade-up" aria-label="Platform status">
-              <span className="hero-badge-dot" />
-              <span>Now in Public Beta — 10,000+ quizzes generated</span>
-            </div>
-
-            {/* Headline */}
-            <h1
-              id="hero-heading"
-              className="hero-title anim-fade-up anim-delay-1"
-            >
-              Turn any prompt{' '}
-              <br />
-              into a{' '}
-              <span className="gradient-text">perfect quiz</span>
-              <br />
-              in seconds.
-            </h1>
-
-            {/* Sub */}
-            <p className="hero-sub anim-fade-up anim-delay-2">
-              GetQuiz uses AI to instantly generate high-quality quizzes from text, documents, or URLs.
-              Then refine with our powerful editor — no setup, no friction.
-            </p>
-
-            {/* CTA Input */}
-            <div className="anim-fade-up anim-delay-3">
-              <div
-                className="hero-input-group"
-                role="search"
-                aria-label="Quiz generation prompt"
-              >
-                <input
-                  ref={inputRef}
-                  id="hero-prompt-input"
-                  className="hero-input"
-                  type="text"
-                  value={prompt}
-                  onChange={e => setPrompt(e.target.value)}
-                  placeholder={EXAMPLE_PROMPTS[exampleIndex]}
-                  onKeyDown={e => e.key === 'Enter' && handleGenerate()}
-                  aria-label="Enter a quiz prompt"
-                />
-                <button
-                  id="hero-generate-btn"
-                  className="btn btn-primary"
-                  onClick={handleGenerate}
-                  aria-label="Generate quiz"
-                >
-                  <Sparkles size={15} />
-                  Generate
-                </button>
-              </div>
-              <p style={{
-                marginTop: '0.625rem',
-                fontSize: '0.75rem',
-                color: 'var(--text-3)',
-                fontFamily: 'var(--font-mono)',
-              }}>
-                No credit card required · Free forever plan available
-              </p>
-            </div>
-
-            {/* Stats */}
-            <div className="hero-stats anim-fade-up anim-delay-4">
-              {[
-                { num: '67K+', label: 'Educators' },
-                { num: '67M+', label: 'Quizzes made' },
-                { num: '6.7★', label: 'Avg rating' },
-              ].map(({ num, label }) => (
-                <div key={label}>
-                  <div className="hero-stat-num">{num}</div>
-                  <div className="hero-stat-label">{label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Right column: visual */}
-          <div className="anim-fade-up anim-delay-5">
-            <DashboardMockup />
-          </div>
-        </div>
-      </div>
-
-      {/* Scroll cue */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '2rem',
-          left: '50%',
-          transform: 'translateX(-50%)',
+    // Loading style (blur screen + loading animation + loading text)
+    <>
+      {loadingState !== 'idle' && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(5, 5, 20, 0.85)',
+          backdropFilter: 'blur(10px)',
+          zIndex: 99999,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          gap: '0.35rem',
-          color: 'var(--text-3)',
-          animation: 'fadeIn 1s 1.5s both',
-        }}
-        aria-hidden="true"
-      >
-        <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
-          SCROLL
-        </span>
-        <ChevronRight
-          size={16}
-          style={{ transform: 'rotate(90deg)', animation: 'float 2s ease-in-out infinite' }}
-        />
-      </div>
-    </section>
+          justifyContent: 'center',
+          color: 'white',
+          fontFamily: 'var(--font-sans)',
+        }}>
+          <div style={{
+            width: '60px',
+            height: '60px',
+            border: '4px solid rgba(255, 255, 255, 0.1)',
+            borderTopColor: 'var(--accent)',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite',
+            marginBottom: '1.5rem'
+          }} />
+          <style>{`
+            @keyframes spin {
+              0% { transform: rotate(0deg); }
+              100% { transform: rotate(360deg); }
+            }
+          `}</style>
+          <div style={{
+            fontSize: '1.5rem',
+            fontWeight: 600,
+            letterSpacing: '0.05em'
+          }}>
+            {loadingState === 'checking' ? 'Checking prompt...' : 'Generating Quiz...'}
+          </div>
+          <div style={{
+            marginTop: '0.75rem',
+            fontSize: '0.95rem',
+            color: 'rgba(255, 255, 255, 0.6)',
+            fontFamily: 'var(--font-mono)'
+          }}>
+            Please wait while AI analyzes your topic
+          </div>
+        </div>
+      )}
+
+      <section className="hero" id="hero" aria-labelledby="hero-heading">
+        {/* Ambient background */}
+        <div className="hero-bg" aria-hidden="true">
+          <StarField count={100} />
+          <div className="hero-blob-1" />
+          <div className="hero-blob-2" />
+        </div>
+
+        <div className="hero-content" style={{ width: '100%' }}>
+          <div className="hero-inner">
+            {/* Left column: copy & CTA */}
+            <div>
+              {/* Badge */}
+              <div className="hero-badge anim-fade-up" aria-label="Platform status">
+                <span className="hero-badge-dot" />
+                <span>Now in Public Beta — 10,000+ quizzes generated</span>
+              </div>
+
+              {/* Headline */}
+              <h1
+                id="hero-heading"
+                className="hero-title anim-fade-up anim-delay-1"
+              >
+                Turn any prompt{' '}
+                <br />
+                into a{' '}
+                <span className="gradient-text">perfect quiz</span>
+                <br />
+                in seconds.
+              </h1>
+
+              {/* Sub */}
+              <p className="hero-sub anim-fade-up anim-delay-2">
+                GetQuiz uses AI to instantly generate high-quality quizzes from text, documents, or URLs.
+                Then refine with our powerful editor — no setup, no friction.
+              </p>
+
+              {/* CTA Input */}
+              <div className="anim-fade-up anim-delay-3">
+                <div
+                  className="hero-input-group"
+                  role="search"
+                  aria-label="Quiz generation prompt"
+                >
+                  <input
+                    ref={inputRef}
+                    id="hero-prompt-input"
+                    className="hero-input"
+                    type="text"
+                    value={prompt}
+                    onChange={e => setPrompt(e.target.value)}
+                    placeholder={EXAMPLE_PROMPTS[exampleIndex]}
+                    onKeyDown={e => e.key === 'Enter' && handleGenerate()}
+                    aria-label="Enter a quiz prompt"
+                  />
+                  <button
+                    id="hero-generate-btn"
+                    className="btn btn-primary"
+                    onClick={handleGenerate}
+                    aria-label="Generate quiz"
+                  >
+                    <Sparkles size={15} />
+                    Generate
+                  </button>
+                </div>
+                <p style={{
+                  marginTop: '0.625rem',
+                  fontSize: '0.75rem',
+                  color: 'var(--text-3)',
+                  fontFamily: 'var(--font-mono)',
+                }}>
+                  No credit card required · Free forever plan available
+                </p>
+              </div>
+
+              {/* Stats */}
+              <div className="hero-stats anim-fade-up anim-delay-4">
+                {[
+                  { num: '67K+', label: 'Educators' },
+                  { num: '67M+', label: 'Quizzes made' },
+                  { num: '6.7★', label: 'Avg rating' },
+                ].map(({ num, label }) => (
+                  <div key={label}>
+                    <div className="hero-stat-num">{num}</div>
+                    <div className="hero-stat-label">{label}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Right column: visual */}
+            <div className="anim-fade-up anim-delay-5">
+              <DashboardMockup />
+            </div>
+          </div>
+        </div>
+
+        {/* Scroll cue */}
+        <div
+          style={{
+            position: 'absolute',
+            bottom: '2rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.35rem',
+            color: 'var(--text-3)',
+            animation: 'fadeIn 1s 1.5s both',
+          }}
+          aria-hidden="true"
+        >
+          <span style={{ fontSize: '0.7rem', fontFamily: 'var(--font-mono)', letterSpacing: '0.1em' }}>
+            SCROLL
+          </span>
+          <ChevronRight
+            size={16}
+            style={{ transform: 'rotate(90deg)', animation: 'float 2s ease-in-out infinite' }}
+          />
+        </div>
+      </section>
+    </>
   );
 }

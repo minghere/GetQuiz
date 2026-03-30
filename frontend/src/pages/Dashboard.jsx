@@ -1,5 +1,5 @@
-import { useState, useReducer, useCallback, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useReducer, useCallback, useMemo, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Zap, Sun, Moon, LayoutDashboard, PlusCircle, ClipboardList,
   ChevronRight, Search, Trash2, Edit3, X, Plus, Check,
@@ -15,6 +15,7 @@ import '../styles/dashboard.css';
 function quizzesReducer(state, action) {
   switch (action.type) {
     case 'ADD_QUIZ':
+      if (state.some(q => q.id === action.quiz.id)) return state;
       return [action.quiz, ...state];
     case 'DELETE_QUIZ':
       return state.filter(q => q.id !== action.id);
@@ -34,6 +35,20 @@ export default function Dashboard() {
   const [view, setView] = useState(VIEWS.HOME);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [search, setSearch] = useState('');
+
+  // Loading state for generating process
+  const location = useLocation();
+
+  useEffect(() => {
+    const aiQuiz = location.state?.generatedQuiz;
+    if (aiQuiz) {
+      dispatch({ type: 'ADD_QUIZ', quiz: aiQuiz });
+      setSelectedQuiz(aiQuiz);
+      setView(VIEWS.DETAIL);
+      // Clear state so that refresh doesn't duplicate the quiz
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state?.generatedQuiz]);
 
   const openDetail = useCallback((quiz) => {
     setSelectedQuiz(quiz);
@@ -273,7 +288,7 @@ function QuizDetail({ quiz, onBack, onDelete }) {
         <div className="res-actions" style={{ flexDirection: 'row', justifyContent: 'flex-start', gap: '0.75rem', marginTop: '0.5rem' }}>
           <button
             className="btn btn-primary"
-            onClick={() => navigate(`/quiz/${quiz.id}`)}
+            onClick={() => navigate(`/quiz/${quiz.id}`, { state: { quiz } })}
             id={`quiz-start-btn-${quiz.id}`}
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
@@ -349,7 +364,7 @@ function QuestionCard({ question, index }) {
 
 // ── CreateQuiz View ────────────────────────────────────────────
 const EMPTY_MCQ = () => ({ id: Date.now() + Math.random(), type: 'mcq', text: '', options: ['', '', '', ''], correctIndex: 0 });
-const EMPTY_TF  = () => ({ id: Date.now() + Math.random(), type: 'tf', text: '', correct: true });
+const EMPTY_TF = () => ({ id: Date.now() + Math.random(), type: 'tf', text: '', correct: true });
 
 function CreateQuiz({ onSave, onCancel }) {
   const [title, setTitle] = useState('');
@@ -387,7 +402,7 @@ function CreateQuiz({ onSave, onCancel }) {
       if (!q.text.trim()) e[`q${i}_text`] = `Question ${i + 1} needs a prompt.`;
       if (q.type === 'mcq') {
         q.options.forEach((o, oi) => {
-          if (!o.trim()) e[`q${i}_o${oi}`] = `Q${i + 1} Option ${String.fromCharCode(65+oi)} is empty.`;
+          if (!o.trim()) e[`q${i}_o${oi}`] = `Q${i + 1} Option ${String.fromCharCode(65 + oi)} is empty.`;
         });
       }
     });
