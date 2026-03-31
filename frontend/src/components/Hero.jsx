@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, ArrowRight, ChevronRight } from 'lucide-react';
 import { generateQuiz } from '../api/quizzes';
+import LoadingOverlay from './LoadingOverlay';
 
 // Lightweight star field using pure CSS/JS — no library needed
 function StarField({ count = 80 }) {
@@ -221,52 +222,7 @@ export default function Hero() {
   return (
     // Loading style (blur screen + loading animation + loading text)
     <>
-      {loadingState !== 'idle' && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(5, 5, 20, 0.85)',
-          backdropFilter: 'blur(10px)',
-          zIndex: 99999,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          fontFamily: 'var(--font-sans)',
-        }}>
-          <div style={{
-            width: '60px',
-            height: '60px',
-            border: '4px solid rgba(255, 255, 255, 0.1)',
-            borderTopColor: 'var(--accent)',
-            borderRadius: '50%',
-            animation: 'spin 1s linear infinite',
-            marginBottom: '1.5rem'
-          }} />
-          <style>{`
-            @keyframes spin {
-              0% { transform: rotate(0deg); }
-              100% { transform: rotate(360deg); }
-            }
-          `}</style>
-          <div style={{
-            fontSize: '1.5rem',
-            fontWeight: 600,
-            letterSpacing: '0.05em'
-          }}>
-            {loadingState === 'checking' ? 'Checking prompt...' : 'Generating Quiz...'}
-          </div>
-          <div style={{
-            marginTop: '0.75rem',
-            fontSize: '0.95rem',
-            color: 'rgba(255, 255, 255, 0.6)',
-            fontFamily: 'var(--font-mono)'
-          }}>
-            Please wait while AI analyzes your topic
-          </div>
-        </div>
-      )}
+      <LoadingOverlay loadingState={loadingState} />
 
       <section className="hero" id="hero" aria-labelledby="hero-heading">
         {/* Ambient background */}
