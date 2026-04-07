@@ -10,10 +10,11 @@ class Settings:
     
     # Get key from .env file
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "")
     
     # List of allowed domains for Cross-Origin Resource Sharing (CORS)
     CORS_ORIGINS: list = [
-        "http://localhost:5173",  # Default Vite React port
+        "http://localhost:5173",  # Default Vite
         "http://127.0.0.1:5173",
     ]
 

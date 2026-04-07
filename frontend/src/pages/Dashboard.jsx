@@ -10,13 +10,15 @@ import {
 import { useTheme } from '../context/ThemeContext';
 import { MOCK_QUIZZES } from '../data/mockQuizzes';
 import '../styles/dashboard.css';
-import { generateQuiz } from '../api/quizzes';
+import { generateQuiz, getQuizzes } from '../api/quizzes';
 import LoadingOverlay from '../components/LoadingOverlay';
 
 
 // ── Reducer for quiz state ─────────────────────────────────────
 function quizzesReducer(state, action) {
   switch (action.type) {
+    case 'SET_QUIZZES':
+      return action.quizzes;
     case 'ADD_QUIZ':
       if (state.some(q => q.id === action.quiz.id)) return state;
       return [action.quiz, ...state];
@@ -34,7 +36,8 @@ const VIEWS = { HOME: 'home', CREATE: 'create', DETAIL: 'detail', AI_CREATE: 'ai
 
 export default function Dashboard() {
   const { theme, toggle } = useTheme();
-  const [quizzes, dispatch] = useReducer(quizzesReducer, MOCK_QUIZZES);
+  // Khởi tạo là mảng RỖNG thay vì MOCK_QUIZZES giả
+  const [quizzes, dispatch] = useReducer(quizzesReducer, []);
   const [view, setView] = useState(VIEWS.HOME);
   const [selectedQuiz, setSelectedQuiz] = useState(null);
   const [search, setSearch] = useState('');
@@ -42,6 +45,24 @@ export default function Dashboard() {
   // Loading state for generating process
   const location = useLocation();
 
+  // 1. Dùng useEffect để lấy toàn bộ danh sách Bài Quiz dưới Database khi mới mở Web lên
+  useEffect(() => {
+    async function loadQuizzes() {
+      try {
+        const res = await getQuizzes();
+        // Cấu trúc API trả về là res.data (Dữ liệu HTTP) -> .data (Gói payload) -> .quizzes (Mảng)
+        if (res.ok && res.data?.data?.quizzes) {
+           dispatch({ type: 'SET_QUIZZES', quizzes: res.data.data.quizzes });
+        }
+      } catch(e) {
+        console.error("Không thể tải danh sách Quiz", e);
+      }
+    }
+    loadQuizzes();
+  }, []);
+
+  // 2. Chơi ăn gian UX: Sau khi tạo Quiz xong (AiCreateQuiz báo gửi thành công)
+  // Quăng ngay vào Reducer để màn hình cập nhật nhanh không cần Load lại csdl tốn tài nguyên
   useEffect(() => {
     const aiQuiz = location.state?.generatedQuiz;
     if (aiQuiz) {

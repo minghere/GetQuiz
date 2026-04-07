@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any
 
 # --- REQUEST PAYLOAD FROM FRONTEND ---
 class GenerateQuizRequest(BaseModel):
@@ -8,7 +8,7 @@ class GenerateQuizRequest(BaseModel):
 
 # --- RESPONSE STRUCTURE (GEMINI MUST RETURN THIS EXACT FORMAT) ---
 class Question(BaseModel):
-    id: int
+    id: Any
     type: str = Field(..., description="'mcq' for multiple-choice or 'tf' for true/false")
     text: str = Field(..., description="The question text")
     options: List[str] = Field(..., description="List of options as strings. For 'tf', it must be exactly ['True', 'False']")
@@ -18,7 +18,7 @@ class Question(BaseModel):
     correct: Optional[bool] = Field(default=None, description="Only for 'tf' type, marks whether the statement is true or false")
 
 class GeneratedQuizResponse(BaseModel):
-    id: Optional[int] = None
+    id: Optional[Any] = None
     createdAt: Optional[str] = None
     questionCount: Optional[int] = None
     title: str
@@ -29,4 +29,4 @@ class GeneratedQuizResponse(BaseModel):
 class APIResponse(BaseModel):
     status: str = Field(..., description="'success' or 'error'")
     message: Optional[str] = None
-    data: Optional[GeneratedQuizResponse] = None
+    data: Optional[Any] = None
